@@ -31,6 +31,7 @@ class UserConcernRequest(BaseModel):
     province: str
     city: str
     concern: str
+    detail_concern: str  # 🔥 추가
 
 
 # Spring Boot에서 호출하는 엔드포인트
@@ -40,16 +41,23 @@ async def embed_user(req: UserConcernRequest):
     try:
         embeddings = UpstageEmbeddings(model="solar-embedding-1-large")
         vectorstore = PineconeVectorStore(
-            index_name="jichini-user-index",
+            index_name="jichini-user-index-dev",
             embedding=embeddings,
             pinecone_api_key=os.environ["PINECONE_API_KEY"],
         )
+        combined_text = f"""
+        고민: {req.concern}
+        상세 고민: {req.detail_concern}
+        """
+
         doc = Document(
-            page_content=req.concern,
+            page_content=req.concern,  # 🔥 concern만
             metadata={
                 "user_id": req.user_id,
                 "province": req.province,
                 "city": req.city,
+                "concern": req.concern,              # 🔥 추가
+                "detail_concern": req.detail_concern, # 🔥 추가
             }
         )
         vectorstore.add_documents([doc])
@@ -84,22 +92,29 @@ async def update_user(req: UserConcernRequest):
     try:
         embeddings = UpstageEmbeddings(model="solar-embedding-1-large")
         vectorstore = PineconeVectorStore(
-            index_name="jichini-user-index",
+            index_name="jichini-user-index-dev",
             embedding=embeddings,
             pinecone_api_key=os.environ["PINECONE_API_KEY"],
         )
         # 기존 벡터 삭제
         vectorstore.delete(filter={"user_id": req.user_id})
 
-        # 새 벡터 추가
+        combined_text = f"""
+        고민: {req.concern}
+        상세 고민: {req.detail_concern}
+        """
+
         doc = Document(
-            page_content=req.concern,
+            page_content=req.concern,  # 🔥 concern만
             metadata={
                 "user_id": req.user_id,
                 "province": req.province,
                 "city": req.city,
+                "concern": req.concern,              # 🔥 추가
+                "detail_concern": req.detail_concern, # 🔥 추가
             }
         )
+
         vectorstore.add_documents([doc])
         return {"status": "ok"}
     except Exception as e:
@@ -113,7 +128,7 @@ async def delete_user(user_id: str):
     try:
         embeddings = UpstageEmbeddings(model="solar-embedding-1-large")
         vectorstore = PineconeVectorStore(
-            index_name="jichini-user-index",
+            index_name="jichini-user-index-dev",
             embedding=embeddings,
             pinecone_api_key=os.environ["PINECONE_API_KEY"],
         )
@@ -121,3 +136,4 @@ async def delete_user(user_id: str):
         return {"status": "ok"}
     except Exception as e:
         return {"status": "error", "message": str(e)}
+
