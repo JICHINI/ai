@@ -57,7 +57,7 @@ def get_session_history(session_id: str) -> BaseChatMessageHistory:
 # =========================
 # LLM
 # =========================
-def get_llm(model="solar-pro3"):
+def get_llm(model="solar-pro2"):
     return ChatUpstage(model=model)
 
 
@@ -171,18 +171,19 @@ def get_guide_chain():
     llm = get_llm()
 
     prompt = ChatPromptTemplate.from_template("""
-너는 사용자가 고민을 자연스럽게 말하도록 돕는 AI"지치니"이다.
+너는 사용자에게 고민을 자연스럽게 말하도록 돕는 AI"지치니"이다.
 
 규칙:
 - 설교하지 마라
 - 사용자가 자연스럽게 고민을 말하도록 유도하라
 - 사용자가 인사, 욕설, 잡담을 했을 때는 자연스럽게 고민을 말하도록 유도하라
 - 절대 사용자가 한 말을 무시하지 마라
-- 사용자가 말한 말에 따라서 답변해라 그 이유는 절대 말하지마라
-- 사용자에게 답변한 이유를 사용자에가 절대 말하지마라
+- 사용자에게 답변한 이유를 절대 설명하지 마라
 - 괄호로 절대 설명을 덧붙이지 마라
 - 메타 설명, 해설, 주석을 절대 출력하지 마라
 - 오직 사용자에게 하는 말만 출력하라
+- 왜 이런답변을 작성했는지 절대 말하지 마라.
+
 입력 유형: {type}
 사용자 입력: {input}
 """)
@@ -267,18 +268,24 @@ def get_merge_chain():
 
 
 def is_more_request(text: str) -> bool:
+    if not text:
+        return False
+
+    normalized = text.replace(" ", "")
+
     keywords = [
-        "더 보여",
-        "다른 사람",
+        "더보여",
+        "다른사람",
         "추가",
-        "더 추천",
-        "또 있",
-        "더 있",
-        "더 없",
-        "또 없"
+        "더추천",
+        "또있",
+        "더있",
+        "더없",
+        "또없",
+        "더보"
     ]
 
-    return any(k in text for k in keywords)
+    return any(k in normalized for k in keywords)
 
 
 
@@ -438,7 +445,10 @@ def get_ai_response(user_message, user_province, user_city, session_id="default"
         if count == 0:
             return string_to_stream("더 이상 추천할 사용자가 없습니다.")
 
-
+        result += (
+    "\n더 많은 사용자를 보고 싶다면 '더 보여줘'라고 말해 주세요."
+    "\n고민을 조금 더 자세히 말해주면 더 비슷한 사람을 찾아드릴 수 있어요."
+)
 
 
         return string_to_stream(result)
@@ -498,6 +508,7 @@ def get_ai_response(user_message, user_province, user_city, session_id="default"
     print("concern score:", score)
 
     if score < 5:
+        set_session_concern(session_id, current_concern)
         guide_result = guide_chain.invoke({
             "input": current_concern,
             "type": "고민 부족"
@@ -561,8 +572,11 @@ def get_ai_response(user_message, user_province, user_city, session_id="default"
 
     set_seen_ids(session_id, seen_ids)
 
-
+    result += (
+    "\n더 많은 사용자를 보고 싶다면 '더 보여줘'라고 말해 주세요."
+    "\n고민을 조금 더 자세히 말해주면 더 비슷한 사람을 찾아드릴 수 있어요."
+)
 
 
     return string_to_stream(result)
-#     python -m uvicorn main:app --reload --port 5000
+#     python -m uvicorn main:app —reload —port 5000
