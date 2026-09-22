@@ -20,6 +20,27 @@ session_concern_store = {}
 session_seen_store = {}
 
 
+def get_secret(name: str) -> str:
+    """로컬 .env와 Streamlit Cloud Secrets 모두에서 비밀값을 읽는다."""
+    value = os.getenv(name)
+    if value:
+        return value
+
+    try:
+        import streamlit as st
+
+        value = st.secrets.get(name)
+    except Exception:
+        value = None
+
+    if not value:
+        raise RuntimeError(
+            f"{name}이 설정되지 않았습니다. Streamlit Cloud의 App settings → Secrets에 추가한 뒤 저장하세요."
+        )
+    return str(value)
+
+
+
 def get_seen_ids(session_id):
     return session_seen_store.get(session_id, set())
 
@@ -43,8 +64,11 @@ def get_session_history(session_id: str) -> BaseChatMessageHistory:
 
 
 def get_llm():
-    """환경변수로 모델을 바꿀 수 있는 OpenAI 채팅 모델을 반환한다."""
-    return ChatOpenAI(model="gpt-4o-mini")
+    """Streamlit Secrets 또는 로컬 .env의 OpenAI 키로 채팅 모델을 생성한다."""
+    return ChatOpenAI(
+        model="gpt-4o-mini",
+        openai_api_key=get_secret("OPENAI_API_KEY"),
+    )
 
 
 def get_embeddings():
@@ -56,7 +80,7 @@ def get_vectorstore():
     return PineconeVectorStore(
         index_name="jichini-openai-index",
         embedding=get_embeddings(),
-        pinecone_api_key=os.environ["PINECONE_API_KEY"],
+        pinecone_api_key=get_secret("PINECONE_API_KEY"),
     )
 
 
